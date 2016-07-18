@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/lib/pq"
@@ -21,6 +22,14 @@ type Driver struct {
 const tableName = "schema_migrations"
 
 func (driver *Driver) Initialize(connUrl string) error {
+	fmt.Fprintln(os.Stderr, connUrl)
+	schemaName := schemaNameFromUrl(connUrl)
+
+	if schemaName != "" {
+		// we need to strip schema from the url as pq
+		// doesn't recognise it
+		connUrl = urlWithoutSchema(connUrl)
+	}
 	db, err := sql.Open("postgres", connUrl)
 	if err != nil {
 		return err
@@ -29,7 +38,6 @@ func (driver *Driver) Initialize(connUrl string) error {
 		return err
 	}
 
-	schemaName := schemaNameFromUrl(connUrl)
 	if schemaName != "" {
 		// use search_path for backwards compatibility to postgres 8ish
 		if _, err := db.Exec("SET search_path TO '$1';", schemaName); err != nil {
@@ -132,7 +140,7 @@ func (driver *Driver) Version() (uint64, error) {
 	}
 }
 
-func schemaNameFromUrl(connUrl string) string {
+func urlWithoutSchema(connUrl string) string {
 	u, err := url.Parse(connUrl)
 	if err != nil {
 		// url should have been validated when opening connection
@@ -141,6 +149,23 @@ func schemaNameFromUrl(connUrl string) string {
 	}
 	q, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
+		panic(err)
+	}
+	q.Del("schema")
+	u.RawQuery = q.Encode()
+
+	return u.String()
+}
+
+func schemaNameFromUrl(connUrl string) string {
+	u, err := url.Parse(connUrl)
+	if err != nil {
+		// url should have been validated when opening connection
+		// if it fails here were are in serious trouble
+		panic(err)
+	}
+	q, err := url.ParseQuery(u.RawQuery)
+	if err != nil || len(q["schema"]) != 1 {
 		return ""
 	}
 
