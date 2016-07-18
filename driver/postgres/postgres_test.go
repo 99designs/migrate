@@ -95,3 +95,7 @@ func TestMigrate(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMigrateWithinSpecificSchema(t *testing.T) {
+	t.Error("TODO write this test")
+}
