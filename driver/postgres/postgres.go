@@ -40,7 +40,7 @@ func (driver *Driver) Initialize(connUrl string) error {
 
 	if schemaName != "" {
 		// use search_path for backwards compatibility to postgres 8ish
-		if _, err := db.Exec("SET search_path TO '$1';", schemaName); err != nil {
+		if _, err := db.Exec("SET search_path TO " + pq.QuoteIdentifier(schemaName) + ";"); err != nil {
 			return err
 		}
 	}
