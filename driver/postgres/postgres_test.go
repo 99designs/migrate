@@ -97,5 +97,34 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMigrateWithinSpecificSchema(t *testing.T) {
-	t.Error("TODO write this test")
+	host := os.Getenv("POSTGRES_PORT_5432_TCP_ADDR")
+	port := os.Getenv("POSTGRES_PORT_5432_TCP_PORT")
+	driverUrl := "postgres://postgres@" + host + ":" + port + "/template1?sslmode=disable"
+
+	// prepare clean database
+	conn, err := sql.Open("postgres", driverUrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(`
+				CREATE schema IF NOT EXISTS migratetestschema;
+				DROP table IF EXISTS migratetestschema.` + tableName + `;`); err != nil {
+		t.Fatal(err)
+	}
+
+	driverUrl += "&schema=migratetestschema"
+
+	d := &Driver{}
+	if err := d.Initialize(driverUrl); err != nil {
+		t.Fatal(err)
+	}
+
+	var count int
+	r := conn.QueryRow(`select count(*) from migratetestschema.` + tableName + `;`)
+	if err = r.Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("Expected 0 rows in schema_migrations, got %v", count)
+	}
 }
